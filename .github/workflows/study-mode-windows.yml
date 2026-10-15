@@ -1,0 +1,73 @@
+name: Study Mode Windows test build
+
+on:
+  push:
+    branches:
+      - feature/japanese-study-mode
+    paths:
+      - ".github/workflows/study-mode-windows.yml"
+      - "src/**"
+      - "tests/study_mode_smoke.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  study-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          architecture: x64
+      - name: Check Python syntax
+        shell: pwsh
+        run: |
+          python -m py_compile src/LunaTranslator/gui/study_mode.py src/LunaTranslator/gui/study_dictionary_install.py src/LunaTranslator/gui/translatorUI.py
+      - name: Install Qt for isolated smoke test
+        run: python -m pip install PyQt6
+      - name: Test GUI offscreen and offline lookup
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tests/study_mode_smoke.py
+
+  windows-x64:
+    runs-on: windows-latest
+    needs: study-smoke
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13.13"
+          architecture: x64
+      - name: Build native dependencies
+        shell: pwsh
+        run: |
+          python src/scripts/build_lunatranslator.py cpp x64 win10
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python src/scripts/build_lunatranslator.py hook x64 win10
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Collect embedded Python runtime
+        shell: pwsh
+        run: |
+          python src/scripts/build_lunatranslator.py pyrt x64 3.13.13 win10
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package unsigned Windows x64 folder
+        shell: pwsh
+        run: |
+          python src/scripts/build_lunatranslator.py merge x64 win10
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "src/build/LunaTranslator_x64")) {
+            throw "Expected LunaTranslator_x64 output folder was not created."
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: LunaTranslator_StudyMode_Windows_x64_unsigned
+          path: src/build/LunaTranslator_x64/
+          if-no-files-found: error
+          retention-days: 14
