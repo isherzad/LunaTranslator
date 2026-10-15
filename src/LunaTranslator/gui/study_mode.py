@@ -119,6 +119,11 @@ class JMdict:
             except sqlite3.DatabaseError:
                 self.db = None
 
+    def close(self):
+        if self.db is not None:
+            self.db.close()
+            self.db = None
+
     def lookup(self, token):
         entry = {"word": token.lemma, "reading": token.reading,
                  "pos": token.pos, "meaning": "No JMdict entry found"}
