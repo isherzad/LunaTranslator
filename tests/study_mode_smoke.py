@@ -51,6 +51,9 @@ def run():
         view.options.save()
         assert (Path(tmp) / "study_mode.json").exists()
         view.close()
+        view.dictionary.close()
+        lookup.close()
+        app.processEvents()
     print("Study Mode GUI + dictionary smoke test passed")
     return 0
 
