@@ -33,6 +33,7 @@ def run():
         with sqlite3.connect(str(study_mode.USER_DIR / "jmdict.sqlite3")) as conn:
             conn.execute("CREATE TABLE dictionary (term TEXT, reading TEXT, pos TEXT, meanings TEXT, priority INTEGER)")
             conn.execute("INSERT INTO dictionary VALUES (?,?,?,?,?)", ("学校","がっこう","noun","school",0))
+        conn.close()  # sqlite3 connection context commits, but does not close on Windows
         lookup = study_mode.JMdict()
         assert lookup.lookup(tokens[0])["meaning"] == "school"
         view = study_mode.StudyMode(None)
