@@ -34,6 +34,7 @@ from gui.qevent import TransparentChangedEvent
 from gui.dialog_memory import dialog_memory
 from gui.rendertext.texttype import TextType, SpecialColor
 from gui.textbrowser import Textbrowser
+from gui.study_mode import StudyMode  # LUNA_STUDY_INTEGRATION
 from gui.rangeselect import rangeselct_function
 from gui.usefulwidget import (
     resizableframeless,
@@ -174,6 +175,7 @@ class TranslatorWindow(resizableframeless):
             name = kwargs.get("name", "")
             color = kwargs.get("color")
             res = kwargs.get("res")
+            self.study_mode.set_japanese(res)
             iter_context = kwargs.get("iter_context", None)
             clear = kwargs.get("clear", False)
             klass = kwargs.get("klass", None)
@@ -195,6 +197,7 @@ class TranslatorWindow(resizableframeless):
     def updateraw(self, text):
         color = SpecialColor.RawTextColor
         text = self.cleartext(text)
+        self.study_mode.set_english(text)
         hira = gobject.base.parsehira(text)
 
         self.translate_text.updatetext(TextType.Origin, text, hira, color)
@@ -203,6 +206,7 @@ class TranslatorWindow(resizableframeless):
         color = SpecialColor.RawTextColor
         clear = True
         text = self.cleartext(text)
+        self.study_mode.set_english(text)
         hira = gobject.base.parsehira(text)
 
         self.showline(
@@ -695,6 +699,20 @@ class TranslatorWindow(resizableframeless):
     def winid(self):
         return int(self.winId())
 
+    def toggle_study_mode(self):
+        if self.study_mode.isHidden():
+            self.study_mode.show()
+            self.translate_text.hide()
+        else:
+            self.study_mode.hide()
+            self.translate_text.show()
+        self.changeextendstated()
+
+    def sync_study_geometry(self):
+        self.study_mode.setGeometry(self.translate_text.geometry())
+        self.study_toggle.move(self.translate_text.x() + 4, self.translate_text.y() + 2)
+        self.study_toggle.raise_()
+
     def changeextendstated(self):
         dh = self.dynamicextraheight()
         if globalconfig.get("verticalhorizontal", False):
@@ -705,6 +723,8 @@ class TranslatorWindow(resizableframeless):
             self.translate_text.move(0, dh)
             height = self.height() - dh
             self.translate_text.resize(self.width(), int(height))
+
+        self.sync_study_geometry()
 
     def hide_(self):
         if globalconfig.get("showintab", False):
@@ -922,6 +942,14 @@ class TranslatorWindow(resizableframeless):
         self.right_top_corner = self.geometry().topRight()
         self.translate_text = Textbrowser(self)
         self.translate_text.loadinternal()
+        self.study_mode = StudyMode(self)
+        self.study_mode.hide()
+        self.study_toggle = QPushButton('Study', self)
+        self.study_toggle.setFixedSize(62, 26)
+        self.study_toggle.setToolTip('Toggle Study Mode (Ctrl+Shift+J)')
+        self.study_toggle.clicked.connect(self.toggle_study_mode)
+        self.study_shortcut = QShortcut(QKeySequence('Ctrl+Shift+J'), self)
+        self.study_shortcut.activated.connect(self.toggle_study_mode)
         self.translate_text.move(0, 0)
         self.translate_text.dropfilecallback.connect(self.dropfilecallback)
         self.translate_text.contentsChanged.connect(self.textAreaChanged)
@@ -1654,6 +1682,8 @@ class TranslatorWindow(resizableframeless):
             self.translate_text.resize(self.width(), int(height))
             if e.oldSize().width() != e.size().width():
                 self.titlebar.setFixedWidth(self.width())
+
+        self.sync_study_geometry()
 
     def tryremoveuseless(self):
         try:
